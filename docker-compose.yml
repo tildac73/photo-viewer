@@ -15,8 +15,8 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_SECURE=false
     depends_on:
-      - db
-      - minio
+    - flyway
+    - minio
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
   db:
@@ -31,7 +31,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dev"]
+      test: ["CMD-SHELL", "pg_isready -U dev -d mydb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,6 +53,20 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+  
+  flyway:
+    image: flyway/flyway
+    container_name: photo-viewer-flyway
+    command: migrate
+    volumes:
+      - ./db/migrations:/flyway/sql
+    environment:
+      FLYWAY_URL: jdbc:postgresql://db:5432/mydb
+      FLYWAY_USER: dev
+      FLYWAY_PASSWORD: dev
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:

@@ -11,7 +11,7 @@ Key Tech Stack Choices
  - minIO photo storage
 
  Data model
- - photo_id (UUID)
+ - id (UUID)
  - file_path
  - upload_time
  - tags (TEXT[])
