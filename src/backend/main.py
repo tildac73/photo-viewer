@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Annotated
 from datetime import datetime
@@ -9,6 +10,16 @@ from minio import Minio
 from uuid import uuid4
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 models.Base.metadata.create_all(bind=engine)
 
 def get_db():
@@ -32,28 +43,39 @@ db_dependency = Annotated[Session, Depends(get_db)]
 @app.post("/upload/")
 async def uploadPhoto(
     file: UploadFile = File(...),
-    tags: str = Form(...),
-    alt_text: str = Form(...),
+    tags: str = Form(None),
+    alt_text: str = Form(None),
     db: db_dependency = None
 ):
-    file_extension = file.filename.split('.')[-1]
-    unique_filename = f"{uuid4()}.{file_extension}"
+    try:
+        # Validate file
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file provided")
 
-    minio_client.put_object(
-        bucket_name="photos",
-        object_name=unique_filename,
-        data=file.file,
-        length=1,
-        part_size=10*1024*1024
-    )
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        unique_filename = f"{uuid4()}.{file_extension}"
 
-    db_photo = models.Photos(
-        file_path=unique_filename,
-        upload_time=datetime.now(),
-        tags=tags,
-        alt_text=alt_text
-    )
-    db.add(db_photo)
-    db.commit()
-    db.refresh(db_photo)
-    return db_photo
+        # Upload to MinIO
+        minio_client.put_object(
+            bucket_name="photos",
+            object_name=unique_filename,
+            data=file.file,
+            length=-1,  # -1 means unknown size, MinIO will handle it
+            part_size=10*1024*1024
+        )
+
+        # Store metadata in database
+        db_photo = models.Photos(
+            file_path=unique_filename,
+            upload_time=datetime.now(),
+            tags=tags,
+            alt_text=alt_text
+        )
+        db.add(db_photo)
+        db.commit()
+        db.refresh(db_photo)
+        return db_photo
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
