@@ -6,6 +6,7 @@ services:
     container_name: photo-viewer
     ports:
       - "8000:8000"
+      - "5678:5678"
     volumes:
       - ./src/backend:/app/backend
     environment:
@@ -17,7 +18,7 @@ services:
     depends_on:
     - minio
     - db
-    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    command: python -X frozen_modules=off -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 
   db:
     image: postgres:16

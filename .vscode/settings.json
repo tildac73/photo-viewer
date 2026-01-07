@@ -1,0 +1,5 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/photo-viewer/bin/python",
+    "python.terminal.activateEnvironment": true
+  }
+  

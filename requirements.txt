@@ -5,3 +5,4 @@ minio
 python-multipart
 python-dotenv
 sqlalchemy
+debugpy

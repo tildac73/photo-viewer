@@ -27,10 +27,25 @@ function Upload() {
 
     try {
       setStatus('Uploading...')
-      const response = await fetch('http://localhost:8000/upload/', {
-        method: 'POST',
-        body: formData,
-      })
+      const response = await fetch("/api/photos/presign?content_type=image/jpeg")
+
+      if (!response.ok) {
+        throw new Error("Failed to get presigned URL");
+      }
+
+      const data = await response.json();
+
+      const upload_response = await fetch(data.upload_url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type,
+        },
+        body: file,
+      });
+
+      if (!upload_response.ok) {
+        throw new Error("Upload failed");
+      }
 
       if (response.ok) {
         const data = await response.json()

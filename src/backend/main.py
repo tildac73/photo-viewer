@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Annotated
-from datetime import datetime
+from datetime import datetime, timedelta
 from . import models
 from .database import engine, SessionLocal
 from sqlalchemy.orm import Session
@@ -11,10 +11,9 @@ from uuid import uuid4
 
 app = FastAPI()
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,33 +39,40 @@ if not minio_client.bucket_exists("photos"):
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
-@app.post("/upload/")
+@app.get("/api/photos/presign/")
+async def presign_url(
+    content_type: str,
+    db: db_dependency
+):
+    try:
+        object_name = f"{uuid4()}.jpg"
+        presign_url = minio_client.presigned_put_object(
+            bucket_name="photos",
+            object_name=object_name,
+            expires=timedelta(minutes=10)
+        )
+
+        return {
+            "presign_url": presign_url,
+            "object_name": object_name
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not generate presigned url: {str(e)}")
+
+@app.post("/api/upload/")
 async def uploadPhoto(
     file: UploadFile = File(...),
+    file_name: str = Form(None),
     tags: str = Form(None),
     alt_text: str = Form(None),
     db: db_dependency = None
 ):
     try:
-        # Validate file
-        if not file.filename:
+        if not file_name:
             raise HTTPException(status_code=400, detail="No file provided")
 
-        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
-        unique_filename = f"{uuid4()}.{file_extension}"
-
-        # Upload to MinIO
-        minio_client.put_object(
-            bucket_name="photos",
-            object_name=unique_filename,
-            data=file.file,
-            length=-1,  # -1 means unknown size, MinIO will handle it
-            part_size=10*1024*1024
-        )
-
-        # Store metadata in database
         db_photo = models.Photos(
-            file_path=unique_filename,
+            file_path=file_name,
             upload_time=datetime.now(),
             tags=tags,
             alt_text=alt_text
