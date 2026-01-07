@@ -1,0 +1,15 @@
+[
+    {
+      "AllowedOrigins": [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://app.localhost",
+        "http://traefik.localhost"
+      ],
+      "AllowedMethods": ["GET", "PUT", "POST", "HEAD", "DELETE"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag", "Content-Type", "Content-Length"],
+      "MaxAgeSeconds": 3000
+    }
+  ]
+  

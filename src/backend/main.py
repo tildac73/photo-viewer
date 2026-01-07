@@ -2,25 +2,24 @@ from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Annotated
-from datetime import datetime
+from datetime import datetime, timedelta
 from . import models
 from .database import engine, SessionLocal
 from sqlalchemy.orm import Session
 from minio import Minio
 from uuid import uuid4
+import os
 
 app = FastAPI()
+models.Base.metadata.create_all(bind=engine)
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-models.Base.metadata.create_all(bind=engine)
 
 def get_db():
     db = SessionLocal()
@@ -29,53 +28,58 @@ def get_db():
     finally:
         db.close()
 
+minio_endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
 minio_client = Minio(
-    "minio:9000",
-    access_key="minioadmin",
-    secret_key="minioadmin",
-    secure=False
+    minio_endpoint,
+    access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
+    secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),
+    secure=os.getenv("MINIO_SECURE", "false").lower() == "true"
 )
 if not minio_client.bucket_exists("photos"):
     minio_client.make_bucket("photos")
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
-@app.post("/upload/")
-async def uploadPhoto(
-    file: UploadFile = File(...),
-    tags: str = Form(None),
-    alt_text: str = Form(None),
-    db: db_dependency = None
+@app.get("/photos/presign")
+async def presignUrl (
+    content_type: str,
+    db: db_dependency
 ):
     try:
-        # Validate file
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="No file provided")
+        object_name = f"{uuid4()}.jpg"
 
-        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
-        unique_filename = f"{uuid4()}.{file_extension}"
-
-        # Upload to MinIO
-        minio_client.put_object(
+        presignUrl = minio_client.presigned_put_object(
             bucket_name="photos",
-            object_name=unique_filename,
-            data=file.file,
-            length=-1,  # -1 means unknown size, MinIO will handle it
-            part_size=10*1024*1024
+            object_name=object_name,
+            expires=timedelta(minutes=10),
         )
 
-        # Store metadata in database
-        db_photo = models.Photos(
-            file_path=unique_filename,
-            upload_time=datetime.now(),
-            tags=tags,
-            alt_text=alt_text
-        )
-        db.add(db_photo)
-        db.commit()
-        db.refresh(db_photo)
-        return db_photo
+        return {
+            "upload_url": presignUrl,
+            "object_name": object_name,
+        }
 
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class PhotoCreate(BaseModel):
+    object_name: str
+    tags: str | None = None
+    alt_text: str | None = None
+
+@app.post("/photos")
+def create_photo(
+    payload: PhotoCreate,
+    db: db_dependency
+):
+    photo = models.Photos(
+        file_path=payload.object_name,
+        upload_time=datetime.now(),
+        tags=payload.tags,
+        alt_text=payload.alt_text
+    )
+    db.add(photo)
+    db.commit()
+    db.refresh(photo)
+    return photo
