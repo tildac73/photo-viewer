@@ -21,7 +21,6 @@ function Upload() {
     }
 
     const formData = new FormData()
-    formData.append('file', file)
     formData.append('tags', tags)
     formData.append('alt_text', altText)
 
@@ -35,7 +34,9 @@ function Upload() {
 
       const data = await response.json();
 
-      const upload_response = await fetch(data.upload_url, {
+      formData.append('file_name', data.object_name);
+
+      const upload_response = await fetch(data.presign_url, {
         method: "PUT",
         headers: {
           "Content-Type": file.type,
@@ -47,15 +48,13 @@ function Upload() {
         throw new Error("Upload failed");
       }
 
-      if (response.ok) {
-        const data = await response.json()
-        setStatus(`Success! Photo ID: ${data.id}`)
-        setFile(null)
-        setTags('')
-        setAltText('')
-      } else {
-        setStatus(`Error: ${response.statusText}`)
-      }
+      await fetch("/api/upload/", {
+        method: "POST",
+        body: formData,
+      });
+
+      setStatus('Upload complete!')
+
     } catch (error) {
       setStatus(`Error: ${error}`)
     }

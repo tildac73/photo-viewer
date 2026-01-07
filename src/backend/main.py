@@ -61,7 +61,6 @@ async def presign_url(
 
 @app.post("/api/upload/")
 async def uploadPhoto(
-    file: UploadFile = File(...),
     file_name: str = Form(None),
     tags: str = Form(None),
     alt_text: str = Form(None),
