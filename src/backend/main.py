@@ -8,6 +8,7 @@ from .database import engine, SessionLocal
 from sqlalchemy.orm import Session
 from minio import Minio
 from uuid import uuid4
+import boto3
 
 app = FastAPI()
 
@@ -28,15 +29,7 @@ def get_db():
     finally:
         db.close()
 
-minio_client = Minio(
-    "minio:9000",
-    access_key="minioadmin",
-    secret_key="minioadmin",
-    secure=False
-)
-if not minio_client.bucket_exists("photos"):
-    minio_client.make_bucket("photos")
-
+s3 = boto3.client("s3", region_name="ap-southeast-2")
 db_dependency = Annotated[Session, Depends(get_db)]
 
 @app.get("/api/photos/presign/")
@@ -46,10 +39,14 @@ async def presign_url(
 ):
     try:
         object_name = f"{uuid4()}.jpg"
-        presign_url = minio_client.presigned_put_object(
-            bucket_name="photos",
-            object_name=object_name,
-            expires=timedelta(minutes=10)
+        presign_url = s3.generate_presigned_url(
+            "put_object",
+            Params={
+                "Bucket": "tildac-photo-viewer-bucket",
+                "Key": object_name,
+                "ContentType": content_type,
+            },
+            ExpiresIn=3600
         )
 
         return {
