@@ -52,6 +52,59 @@ class WardrobeApi {
         }
         return response.json();
     }
+
+    /**
+     * Delete a wardrobe item
+     */
+    async deleteItem(
+        itemId: number
+    ): Promise<{ success: boolean; data?: any; error?: string }> {
+        try {
+            const presignedResponse = await fetch(
+                `/api/wardrobe/items/${itemId}/delete-url`,
+                {
+                    method: 'GET',
+                }
+            );
+
+            if (!presignedResponse.ok) {
+                throw new Error('Failed to get presigned delete URL');
+            }
+
+            const { deleteUrl } = await presignedResponse.json();
+
+            const s3DeleteResponse = await fetch(deleteUrl, {
+                method: 'DELETE',
+            });
+
+            if (!s3DeleteResponse.ok) {
+                throw new Error('Failed to delete item from S3 storage');
+            }
+
+            const dbResponse = await fetch(
+                `/api/wardrobe/items/${itemId}`,
+                {
+                    method: 'DELETE',
+                }
+            );
+
+            if (!dbResponse.ok) {
+                throw new Error('Failed to delete item from database');
+            }
+
+            const result = await dbResponse.json();
+
+            return {
+                success: true,
+                data: result,
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown delete error',
+            };
+        }
+    }
 }
 
 export const wardrobeApi = new WardrobeApi();

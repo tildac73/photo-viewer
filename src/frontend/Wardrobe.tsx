@@ -1,6 +1,7 @@
 import './Wardrobe.scss'
 import React, { useEffect } from "react"
 import { useWardrobe } from './useWardrobe';
+import { wardrobeApi } from './wardrobeApi';
 
 interface WardrobeItem {
     id: number;
@@ -16,20 +17,11 @@ function Wardrobe() {
 
     useEffect(() => {
         fetchWardrobe();
-    }, []);
+    }, [wardrobeItems]);
 
     const handleDelete = (itemId: number, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (window.confirm('Are you sure you want to delete this item?')) {
-            // TODO: Implement delete API call
-            console.log('Delete item:', itemId);
-        }
-    };
-
-    const handleEditTags = (itemId: number, e: React.MouseEvent) => {
-        e.stopPropagation();
-        // TODO: Implement edit tags modal/form
-        console.log('Edit tags for item:', itemId);
+        wardrobeApi.deleteItem(itemId);
     };
 
     const makeWardrobeItemCard = (item: WardrobeItem) => {

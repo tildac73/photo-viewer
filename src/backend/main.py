@@ -82,6 +82,56 @@ async def uploadPhoto(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
+from fastapi import APIRouter, HTTPException
+import boto3
+from datetime import timedelta
+
+router = APIRouter()
+
+@app.get("/api/wardrobe/items/{item_id}/delete-url")
+async def get_delete_url(item_id: int, db: db_dependency):
+    try:
+        item = db.query(models.Photos).filter(models.Photos.id == item_id).first()
+        
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
+        delete_url = s3.generate_presigned_url(
+            'delete_object',
+            Params={
+                'Bucket': 'tildac-photo-viewer-bucket',
+                'Key': item.file_path
+            },
+            ExpiresIn=300
+        )
+        
+        return {"deleteUrl": delete_url}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate delete URL: {str(e)}")
+
+@app.delete("/api/wardrobe/items/{item_id}")
+async def delete_item(item_id: int, db: db_dependency):
+    try:
+        item = db.query(models.Photos).filter(models.Photos.id == item_id).first()
+        
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
+        db.delete(item)
+        db.commit()
+        
+        return {"message": "Item deleted successfully", "id": item_id}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete item: {str(e)}")
+
+
 @app.get("/api/wardrobe/{itemId}") 
 async def getWardrobeItemById(
     itemId: int,
