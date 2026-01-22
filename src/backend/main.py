@@ -81,3 +81,76 @@ async def uploadPhoto(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+@app.get("/api/wardrobe/{itemId}") 
+async def getWardrobeItemById(
+    itemId: int,
+    db: db_dependency
+):
+    try:
+        photo = db.query(models.Photos).filter(models.Photos.id == itemId).first()
+        
+        if not photo:
+            raise HTTPException(status_code=404, detail=f"Item with id {itemId} not found")
+        
+        presigned_url = s3.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": "tildac-photo-viewer-bucket",
+                "Key": photo.file_path,
+            },
+            ExpiresIn=3600
+        )
+        
+        return {
+            "id": photo.id,
+            "file_path": photo.file_path,
+            "url": presigned_url,
+            "upload_time": photo.upload_time,
+            "tags": photo.tags,
+            "alt_text": photo.alt_text
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve item: {str(e)}")
+
+@app.get("/api/wardrobe")
+async def getAllWardrobeItems(
+    db: db_dependency,
+    skip: int = 0,
+    limit: int = 100
+):
+    try:
+        photos = db.query(models.Photos).offset(skip).limit(limit).all()
+        
+        items = []
+        for photo in photos:
+            presigned_url = s3.generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": "tildac-photo-viewer-bucket",
+                    "Key": photo.file_path,
+                },
+                ExpiresIn=3600
+            )
+            
+            items.append({
+                "id": photo.id,
+                "file_path": photo.file_path,
+                "url": presigned_url,
+                "upload_time": photo.upload_time,
+                "tags": photo.tags,
+                "alt_text": photo.alt_text
+            })
+        
+        return {
+            "items": items,
+            "total": len(items),
+            "skip": skip,
+            "limit": limit
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve items: {str(e)}")

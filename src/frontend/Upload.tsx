@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
+import { useUpload } from './useUpload'
 
 function Upload() {
   const [file, setFile] = useState<File | null>(null)
   const [tags, setTags] = useState('')
   const [altText, setAltText] = useState('')
-  const [status, setStatus] = useState<string>('')
+  const { upload, isLoading, error, success } = useUpload();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -12,58 +13,21 @@ function Upload() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!file) {
-      setStatus('Please select a file')
-      return
-    }
-
-    const formData = new FormData()
-    formData.append('tags', tags)
-    formData.append('alt_text', altText)
-
-    try {
-      setStatus('Uploading...')
-      const response = await fetch("/api/photos/presign?content_type=image/jpeg")
-
-      if (!response.ok) {
-        throw new Error("Failed to get presigned URL");
-      }
-
-      const data = await response.json();
-
-      formData.append('file_name', data.object_name);
-
-      const upload_response = await fetch(data.presign_url, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type,
-        },
-        body: file,
-      });
-
-      if (!upload_response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      await fetch("/api/upload/", {
-        method: "POST",
-        body: formData,
-      });
-
-      setStatus('Upload complete!')
-
-    } catch (error) {
-      setStatus(`Error: ${error}`)
-    }
-  }
+  const handleUpload = async (e : React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+  
+    await upload({
+      file,
+      tags: "profile,avatar",
+      altText: "User profile photo",
+    });
+  };
 
   return (
     <div>
       <h2>Upload Photo</h2>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <div>
           <label htmlFor="file">Choose Photo:</label>
           <input
@@ -99,7 +63,21 @@ function Upload() {
         <button type="submit">Upload</button>
       </form>
 
-      {status && <p style={{ marginTop: '10px', color: status.includes('Error') ? 'red' : 'green' }}>{status}</p>}
+      <p
+        style={{
+          marginTop: "10px",
+          color: error ? "red" : "green",
+        }}
+      >
+        {isLoading
+          ? "Uploading..."
+          : error
+          ? "Upload Failed"
+          : success
+          ? "Upload Successful"
+          : ""}
+      </p>
+
     </div>
   )
 }

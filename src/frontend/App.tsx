@@ -1,12 +1,24 @@
-import React from 'react'
-import Upload from './Upload'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Home from './Home'
+import Navbar from './Navbar';
+import Upload from './Upload';
+import About from './About';
+import Wardrobe from './Wardrobe';
+import './App.scss';
 
 function App() {
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <h1>Photo Viewer</h1>
-      <Upload />
-    </div>
+    <Router>
+      <div className="app-container">
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/upload" element={<Upload />} />
+          <Route path="/wardrobe" element={<Wardrobe />} />
+        </Routes>
+      </div>
+    </Router>
   )
 }
 
