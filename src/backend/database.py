@@ -16,7 +16,5 @@ else:
 print(f"Connecting to: {URL_DATABASE.split('@')[1] if '@' in URL_DATABASE else 'unknown'}")
 
 engine = create_engine(URL_DATABASE)
-
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
