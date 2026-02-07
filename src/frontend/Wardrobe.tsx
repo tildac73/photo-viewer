@@ -1,27 +1,18 @@
 import './Wardrobe.scss'
 import React, { useEffect } from "react"
 import { useWardrobe } from './useWardrobe';
-import { wardrobeApi } from './wardrobeApi';
-
-interface WardrobeItem {
-    id: number;
-    file_path: string;
-    url: string;
-    upload_time: string;
-    tags: string;
-    alt_text: string;
-}
+import { WardrobeItem } from './wardrobeApi';
 
 function Wardrobe() {
-    const { isLoading, success, error, wardrobeItems, fetchWardrobe } = useWardrobe();
+    const { isLoading, error, wardrobeItems, fetchWardrobe, deleteItem } = useWardrobe();
 
     useEffect(() => {
         fetchWardrobe();
-    }, [wardrobeItems]);
+    }, []);
 
     const handleDelete = (itemId: number, e: React.MouseEvent) => {
         e.stopPropagation();
-        wardrobeApi.deleteItem(itemId);
+        deleteItem(itemId);
     };
 
     const makeWardrobeItemCard = (item: WardrobeItem) => {
@@ -59,9 +50,13 @@ function Wardrobe() {
 
     return (
         <div className='wardrobe_container'>
-            <h1 className='wardrobe_heading'>Your Wardrobe</h1>      
+            <h1 className='wardrobe_heading'>Your Wardrobe</h1>
             {isLoading && <p className="status">Loading wardrobe...</p>}
             {error && <p className="error">Error: {error}</p>}
+
+            {!isLoading && !error && wardrobeItems.length === 0 && (
+                <p className="empty-state">Your wardrobe is empty. Upload some items to get started!</p>
+            )}
 
             <div className='wardrobe_grid'>
                 {wardrobeItems.map((item) => makeWardrobeItemCard(item))}

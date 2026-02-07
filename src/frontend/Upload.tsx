@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useUpload } from './useUpload'
+import './Upload.scss'
 
 function Upload() {
   const [file, setFile] = useState<File | null>(null)
@@ -16,20 +17,38 @@ function Upload() {
   const handleUpload = async (e : React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
-  
+
     await upload({
       file,
-      tags: "profile,avatar",
-      altText: "User profile photo",
+      tags,
+      altText,
     });
   };
 
+  const statusClass = isLoading
+    ? 'loading'
+    : error
+    ? 'error'
+    : success
+    ? 'success'
+    : '';
+
+  const statusText = isLoading
+    ? 'Uploading...'
+    : error
+    ? 'Upload Failed'
+    : success
+    ? 'Upload Successful'
+    : '';
+
   return (
-    <div>
-      <h2>Upload Photo</h2>
-      <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div>
-          <label htmlFor="file">Choose Photo:</label>
+    <div className="upload_container">
+      <h1 className="upload_heading">Upload Photo</h1>
+      <form onSubmit={handleUpload} className="upload_form">
+        <div className="upload_file_input">
+          <label htmlFor="file">
+            {file ? file.name : 'Choose Photo'}
+          </label>
           <input
             type="file"
             id="file"
@@ -38,8 +57,8 @@ function Upload() {
           />
         </div>
 
-        <div>
-          <label htmlFor="tags">Tags:</label>
+        <div className="upload_field">
+          <label htmlFor="tags">Tags</label>
           <input
             type="text"
             id="tags"
@@ -49,8 +68,8 @@ function Upload() {
           />
         </div>
 
-        <div>
-          <label htmlFor="altText">Alt Text:</label>
+        <div className="upload_field">
+          <label htmlFor="altText">Alt Text</label>
           <input
             type="text"
             id="altText"
@@ -60,24 +79,20 @@ function Upload() {
           />
         </div>
 
-        <button type="submit">Upload</button>
+        <button
+          type="submit"
+          className="upload_submit"
+          disabled={!file || isLoading}
+        >
+          {isLoading ? 'Uploading...' : 'Upload'}
+        </button>
       </form>
 
-      <p
-        style={{
-          marginTop: "10px",
-          color: error ? "red" : "green",
-        }}
-      >
-        {isLoading
-          ? "Uploading..."
-          : error
-          ? "Upload Failed"
-          : success
-          ? "Upload Successful"
-          : ""}
-      </p>
-
+      {statusText && (
+        <p className={`upload_status ${statusClass}`}>
+          {statusText}
+        </p>
+      )}
     </div>
   )
 }

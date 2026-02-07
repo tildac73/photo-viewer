@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useWardrobe } from './useWardrobe';
+import { wardrobeApi } from './wardrobeApi';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -181,6 +182,89 @@ describe('useWardrobe', () => {
 
             expect(result.current.error).toBeNull();
             expect(result.current.success).toBe(true);
+        });
+    });
+
+    describe('deleteItem', () => {
+        it('should remove item from wardrobeItems on success', async () => {
+            const mockItems = [
+                { id: 1, file_path: 'a.jpg', url: 'http://a', upload_time: '2024-01-01', tags: 'summer', alt_text: 'A' },
+                { id: 2, file_path: 'b.jpg', url: 'http://b', upload_time: '2024-01-02', tags: 'winter', alt_text: 'B' },
+            ];
+
+            // First call: fetchWardrobe
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: () => Promise.resolve({ items: mockItems, total: 2, skip: 0, limit: 100 })
+            });
+
+            const { result } = renderHook(() => useWardrobe());
+
+            await act(async () => {
+                await result.current.fetchWardrobe();
+            });
+
+            expect(result.current.wardrobeItems).toHaveLength(2);
+
+            // Mock deleteItem API calls (3 fetches: presigned URL, S3 delete, DB delete)
+            vi.spyOn(wardrobeApi, 'deleteItem').mockResolvedValueOnce({ success: true });
+
+            await act(async () => {
+                await result.current.deleteItem(1);
+            });
+
+            expect(result.current.wardrobeItems).toHaveLength(1);
+            expect(result.current.wardrobeItems[0].id).toBe(2);
+        });
+
+        it('should set error when API returns success: false', async () => {
+            vi.spyOn(wardrobeApi, 'deleteItem').mockResolvedValueOnce({
+                success: false,
+                error: 'Failed to delete item from database'
+            });
+
+            const { result } = renderHook(() => useWardrobe());
+
+            await act(async () => {
+                await result.current.deleteItem(1);
+            });
+
+            expect(result.current.error).toBe('Failed to delete item from database');
+        });
+
+        it('should set error when deleteItem throws', async () => {
+            vi.spyOn(wardrobeApi, 'deleteItem').mockRejectedValueOnce(new Error('Network error'));
+
+            const { result } = renderHook(() => useWardrobe());
+
+            await act(async () => {
+                await result.current.deleteItem(1);
+            });
+
+            expect(result.current.error).toBe('Network error');
+        });
+
+        it('should set isLoading during delete', async () => {
+            let resolveDelete: (value: any) => void;
+            const deletePromise = new Promise((resolve) => {
+                resolveDelete = resolve;
+            });
+
+            vi.spyOn(wardrobeApi, 'deleteItem').mockReturnValueOnce(deletePromise as any);
+
+            const { result } = renderHook(() => useWardrobe());
+
+            act(() => {
+                result.current.deleteItem(1);
+            });
+
+            expect(result.current.isLoading).toBe(true);
+
+            await act(async () => {
+                resolveDelete!({ success: true });
+            });
+
+            expect(result.current.isLoading).toBe(false);
         });
     });
 

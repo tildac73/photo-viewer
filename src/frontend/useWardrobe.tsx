@@ -1,13 +1,5 @@
 import { useState } from "react";
-
-interface WardrobeItem {
-    id: number;
-    file_path: string;
-    url: string;
-    upload_time: string;
-    tags: string;
-    alt_text: string;
-}
+import { WardrobeItem, wardrobeApi } from "./wardrobeApi";
 
 interface WardrobeResponse {
     items: WardrobeItem[];
@@ -69,6 +61,26 @@ export function useWardrobe() {
         }
     };
 
+    const deleteItem = async (itemId: number) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const result = await wardrobeApi.deleteItem(itemId);
+
+            if (!result.success) {
+                setError(result.error || "Failed to delete item");
+                return;
+            }
+
+            setWardrobeItems((prev) => prev.filter((item) => item.id !== itemId));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Unknown error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return {
         isLoading,
         error,
@@ -76,5 +88,6 @@ export function useWardrobe() {
         wardrobeItems,
         fetchWardrobe,
         fetchItemById,
+        deleteItem,
     };
 }

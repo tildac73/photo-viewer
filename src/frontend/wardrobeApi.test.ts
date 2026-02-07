@@ -17,8 +17,8 @@ describe('WardrobeApi', () => {
                 file_path: 'test.jpg',
                 url: 'https://s3.example.com/test.jpg',
                 upload_time: '2024-01-15T10:30:00',
-                tags: ['summer', 'beach'],
-                alt_text: ['A beach photo']
+                tags: 'summer, beach',
+                alt_text: 'A beach photo'
             };
 
             mockFetch.mockResolvedValueOnce({
@@ -54,16 +54,16 @@ describe('WardrobeApi', () => {
                         file_path: 'photo1.jpg',
                         url: 'https://s3.example.com/photo1.jpg',
                         upload_time: '2024-01-15T10:30:00',
-                        tags: ['tag1'],
-                        alt_text: ['Photo 1']
+                        tags: 'tag1',
+                        alt_text: 'Photo 1'
                     },
                     {
                         id: 2,
                         file_path: 'photo2.jpg',
                         url: 'https://s3.example.com/photo2.jpg',
                         upload_time: '2024-01-16T10:30:00',
-                        tags: ['tag2'],
-                        alt_text: ['Photo 2']
+                        tags: 'tag2',
+                        alt_text: 'Photo 2'
                     }
                 ],
                 total: 2,

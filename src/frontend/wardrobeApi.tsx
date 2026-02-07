@@ -3,8 +3,8 @@ export interface WardrobeItem {
     file_path: string,
     url: string,
     upload_time: string,
-    tags: string[],
-    alt_text: string[]
+    tags: string,
+    alt_text: string
 }
 
 export interface AllWardrobeItemsResponse {
